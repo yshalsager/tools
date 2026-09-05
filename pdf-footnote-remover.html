@@ -1,0 +1,1175 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>مزيل حواشي PDF</title>
+  <style>
+    :root {
+      --bg: oklch(0.96 0.016 75);
+      --surface: oklch(0.985 0.009 75);
+      --ink: oklch(0.21 0 0);
+      --muted: oklch(0.43 0.012 75);
+      --line: oklch(0.86 0.026 75);
+      --accent: oklch(0.48 0.16 32);
+      --accent-soft: oklch(0.94 0.025 32);
+      --good: oklch(0.47 0.09 185);
+      --good-soft: oklch(0.94 0.025 185);
+      --danger-mask: oklch(0.55 0.19 28 / 0.28);
+      --focus: oklch(0.58 0.12 185);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button,
+    input[type="number"],
+    select {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--ink);
+      background: white;
+    }
+
+    button {
+      padding: 8px 14px;
+      cursor: pointer;
+      font-weight: 650;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: var(--muted);
+      background: var(--surface);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    button:disabled,
+    input:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .primary {
+      border-color: var(--accent);
+      color: white;
+      background: var(--accent);
+    }
+
+    .primary:hover:not(:disabled) {
+      border-color: oklch(0.4 0.15 32);
+      background: oklch(0.4 0.15 32);
+    }
+
+    .wrap {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 56px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .back {
+      color: var(--muted);
+      text-decoration: none;
+    }
+
+    .back:hover {
+      color: var(--ink);
+      text-decoration: underline;
+    }
+
+    .local {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: oklch(0.37 0.08 185);
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .local::before {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--good);
+      content: "";
+    }
+
+    header {
+      margin-bottom: 24px;
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      line-height: 1.25;
+      text-wrap: balance;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      font-size: 2rem;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      font-size: 1.12rem;
+    }
+
+    header p {
+      max-width: 68ch;
+      margin: 0;
+      color: var(--muted);
+      text-wrap: pretty;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+
+    .upload {
+      display: grid;
+      place-items: center;
+      min-height: 190px;
+      padding: 28px;
+      border: 2px dashed var(--line);
+      border-radius: 14px;
+      text-align: center;
+      background: white;
+      cursor: pointer;
+      transition: border-color 180ms ease-out, background 180ms ease-out;
+    }
+
+    .upload:hover,
+    .upload.dragging {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .upload:focus-within {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .upload strong,
+    .upload span {
+      display: block;
+    }
+
+    .upload strong {
+      margin-bottom: 4px;
+      font-size: 1.05rem;
+    }
+
+    .upload span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .upload input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      clip-path: inset(50%);
+    }
+
+    .activity {
+      margin-top: 14px;
+      padding: 14px 16px;
+    }
+
+    .activity_header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .activity p {
+      margin: 0;
+    }
+
+    .sr_only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    progress {
+      display: block;
+      width: 100%;
+      height: 10px;
+      accent-color: var(--accent);
+    }
+
+    .message {
+      min-height: 1.6em;
+      margin: 12px 0 0;
+      color: var(--muted);
+    }
+
+    .message.error {
+      color: oklch(0.42 0.16 28);
+      font-weight: 650;
+    }
+
+    .workspace {
+      margin-top: 22px;
+    }
+
+    .document_bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .document_name {
+      min-width: 0;
+    }
+
+    .document_name strong,
+    .document_name span {
+      display: block;
+    }
+
+    .document_name strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .document_name span {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .review {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      min-height: 560px;
+    }
+
+    .preview_area {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      padding: 20px;
+      background: oklch(0.9 0.012 75);
+    }
+
+    .page_shell {
+      position: relative;
+      max-width: 100%;
+      overflow: hidden;
+      background: white;
+      box-shadow: 0 3px 8px oklch(0.2 0 0 / 0.16);
+    }
+
+    #preview_canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 70vh;
+      width: auto;
+      height: auto;
+    }
+
+    .preview_unavailable {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      margin: 0;
+      padding: 24px;
+      color: var(--muted);
+      background: white;
+      text-align: center;
+    }
+
+    .removal_mask {
+      position: absolute;
+      right: 0;
+      left: 0;
+      border-block: 2px solid var(--accent);
+      background: var(--danger-mask);
+      pointer-events: none;
+    }
+
+    .drag_handle {
+      position: absolute;
+      right: calc(50% - 34px);
+      width: 68px;
+      height: 44px;
+      cursor: ns-resize;
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .drag_handle::after {
+      position: absolute;
+      right: 0;
+      width: 68px;
+      height: 14px;
+      border: 2px solid white;
+      border-radius: 999px;
+      background: var(--accent);
+      content: "";
+    }
+
+    .drag_handle.top,
+    .drag_handle.top::after {
+      top: 0;
+    }
+
+    .drag_handle.bottom,
+    .drag_handle.bottom::after {
+      bottom: 0;
+    }
+
+    .controls {
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      background: white;
+    }
+
+    .controls h2 {
+      margin-bottom: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .field > span,
+    .field > label,
+    .field legend {
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 650;
+    }
+
+    .page_nav {
+      display: grid;
+      grid-template-columns: 1fr 82px 1fr;
+      gap: 7px;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 6px 9px;
+      text-align: center;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 16px;
+      font-weight: 650;
+    }
+
+    .check input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .boundary_value {
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .control_actions {
+      display: grid;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .note {
+      margin: 18px 0 0;
+      padding: 12px;
+      border-radius: 10px;
+      color: oklch(0.38 0.11 32);
+      background: var(--accent-soft);
+      font-size: 0.82rem;
+    }
+
+    .export_bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .export_bar p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 760px) {
+      .wrap {
+        width: min(100% - 20px, 1120px);
+        padding-top: 14px;
+      }
+
+      .topbar,
+      .document_bar,
+      .export_bar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .review {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        border-top: 1px solid var(--line);
+        border-right: 0;
+      }
+
+      .preview_area {
+        min-height: 360px;
+        padding: 10px;
+      }
+
+      .primary {
+        width: 100%;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <nav class="topbar" aria-label="التنقل">
+      <a class="back" href="index.html">العودة إلى الأدوات</a>
+      <span class="local">تعمل محليًا في المتصفح</span>
+    </nav>
+
+    <header>
+      <h1>مزيل حواشي PDF</h1>
+      <p>يبحث عن الخط الفاصل للحاشية في كل صفحة، ثم يتيح لك مراجعة موضع الإزالة وتنزيل نسخة نظيفة. يعمل مع ملفات PDF المصورة والنصية.</p>
+    </header>
+
+    <label class="upload" id="upload_zone">
+      <input id="file_input" type="file" accept="application/pdf,.pdf" />
+      <strong>اختر ملف PDF أو أفلته هنا</strong>
+      <span>لن يُرفع الملف إلى أي خادم</span>
+    </label>
+
+    <section class="activity panel" id="activity" hidden>
+      <div class="activity_header">
+        <p id="activity_text">جارٍ فتح الملف…</p>
+        <button id="cancel" type="button" hidden>إلغاء التحليل</button>
+      </div>
+      <progress id="progress" max="1" value="0" aria-labelledby="activity_text"></progress>
+    </section>
+    <p class="message" id="message" role="status" aria-live="polite"></p>
+    <p class="sr_only" id="announcement" aria-live="polite"></p>
+
+    <section class="workspace panel" id="workspace" hidden>
+      <div class="document_bar">
+        <div class="document_name">
+          <strong id="file_name" dir="auto"></strong>
+          <span id="summary"></span>
+        </div>
+        <button id="next_detected" type="button">الصفحة المكتشفة التالية</button>
+      </div>
+
+      <div class="review">
+        <div class="preview_area" id="preview_area" role="img" aria-label="معاينة الصفحة">
+          <div class="page_shell" id="page_shell">
+            <canvas id="preview_canvas" aria-hidden="true"></canvas>
+            <p class="preview_unavailable" id="preview_unavailable" hidden>تعذر عرض هذه الصفحة.</p>
+            <div class="removal_mask" id="removal_mask" aria-hidden="true" hidden>
+              <span class="drag_handle top" data-edge="top" title="اسحب الحد العلوي"></span>
+              <span class="drag_handle bottom" data-edge="bottom" title="اسحب الحد السفلي"></span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="controls" aria-labelledby="review_heading">
+          <h2 id="review_heading">مراجعة الصفحة</h2>
+
+          <div class="field">
+            <label for="page_number">رقم الصفحة</label>
+            <div class="page_nav">
+              <button id="previous_page" type="button" aria-label="الصفحة السابقة">السابق</button>
+              <input id="page_number" type="number" min="1" value="1" inputmode="numeric" />
+              <button id="next_page" type="button" aria-label="الصفحة التالية">التالي</button>
+            </div>
+          </div>
+
+          <label class="check">
+            <input id="remove_page" type="checkbox" />
+            إزالة الحاشية من هذه الصفحة
+          </label>
+
+          <label class="field">
+            <span>يبدأ الحذف عند <strong class="boundary_value" id="boundary_value">—</strong></span>
+            <input id="boundary" type="range" min="5" max="99" step="0.2" value="68" disabled />
+          </label>
+
+          <label class="field">
+            <span>ينتهي الحذف عند <strong class="boundary_value" id="boundary_end_value">—</strong></span>
+            <input id="boundary_end" type="range" min="6" max="100" step="0.2" value="94" disabled />
+          </label>
+
+          <div class="control_actions">
+            <button id="restore_auto" type="button">استعادة الموضع المكتشف</button>
+            <button id="clear_page" type="button">عدم الحذف من هذه الصفحة</button>
+          </div>
+
+          <p class="note">الإزالة مرئية فقط: تُغطّى محتويات الصفحة بالأبيض، لكن التعليقات والنماذج قد تبقى ظاهرة، وتبقى بيانات PDF الأصلية قابلة للاسترجاع.</p>
+        </aside>
+      </div>
+
+      <div class="export_bar">
+        <p>راجع الصفحات المعلّمة بالأحمر، وعدّل الحد عند الحاجة.</p>
+        <button class="primary" id="download" type="button">تنزيل PDF المنظّف</button>
+      </div>
+    </section>
+  </main>
+
+  <canvas id="analysis_canvas" hidden></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"
+    integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"
+    integrity="sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI"
+    crossorigin="anonymous"></script>
+  <script>
+    'use strict'
+
+    const $ = id => document.getElementById(id)
+    const upload_zone = $('upload_zone')
+    const file_input = $('file_input')
+    const activity = $('activity')
+    const activity_text = $('activity_text')
+    const progress = $('progress')
+    const message = $('message')
+    const workspace = $('workspace')
+    const preview_canvas = $('preview_canvas')
+    const analysis_canvas = $('analysis_canvas')
+    const removal_mask = $('removal_mask')
+    const page_number = $('page_number')
+    const boundary = $('boundary')
+    const boundary_value = $('boundary_value')
+    const boundary_end = $('boundary_end')
+    const boundary_end_value = $('boundary_end_value')
+    const remove_page = $('remove_page')
+
+    let source_file = null
+    let pdf = null
+    let page_settings = []
+    let current_page = 0
+    let busy = false
+    let preview_busy = false
+    let preview_valid = false
+    let runtime_ready = Boolean(window.pdfjsLib)
+    let cancel_requested = false
+    let preview_id = 0
+    let preview_task = null
+    let analysis_task = null
+
+    const worker_ready = window.pdfjsLib
+      ? prepare_worker().then(() => true, error => {
+        console.error(error)
+        runtime_ready = false
+        show_error('تعذر التحقق من محرّك PDF. تحقق من اتصال الإنترنت ثم أعد فتح الصفحة.')
+        file_input.disabled = true
+        return false
+      })
+      : Promise.resolve(false)
+
+    if (!window.pdfjsLib) {
+      show_error('تعذر تحميل محرّك PDF. تحقق من اتصال الإنترنت ثم أعد فتح الصفحة.')
+      file_input.disabled = true
+    }
+
+    async function prepare_worker() {
+      const response = await fetch('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js')
+      if (!response.ok) throw new Error(`Worker download failed: ${response.status}`)
+      const bytes = await response.arrayBuffer()
+      const digest = await crypto.subtle.digest('SHA-384', bytes)
+      const actual = btoa(String.fromCharCode(...new Uint8Array(digest)))
+      if (actual !== 'SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2') {
+        throw new Error('Worker integrity check failed')
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([bytes], { type: 'text/javascript' }))
+    }
+
+    function is_dark(data, offset, threshold) {
+      return data[offset + 3] > 80 && data[offset] * 0.2126 + data[offset + 1] * 0.7152 + data[offset + 2] * 0.0722 < threshold
+    }
+
+    function detect_separator(image) {
+      const { data, width, height } = image
+      const luminance = []
+      for (let y = 0; y < height; y += 8) {
+        for (let x = 0; x < width; x += 8) {
+          const offset = (y * width + x) * 4
+          luminance.push(data[offset] * 0.2126 + data[offset + 1] * 0.7152 + data[offset + 2] * 0.0722)
+        }
+      }
+      luminance.sort((a, b) => a - b)
+      const low = luminance[Math.floor(luminance.length * 0.05)]
+      const high = luminance[Math.floor(luminance.length * 0.9)]
+      const threshold = high - low < 25 ? high - 25 : low + (high - low) * 0.55
+      const x_start = Math.floor(width * 0.08)
+      const x_end = Math.ceil(width * 0.92)
+      const y_start = Math.floor(height * 0.37)
+      const y_end = Math.floor(height * 0.87)
+      const row_ratios = []
+
+      for (let y = y_start; y < y_end; y++) {
+        let longest = 0
+        let run = 0
+        let gap = 0
+
+        for (let x = x_start; x < x_end; x++) {
+          let dark = false
+          for (let dy = -1; dy <= 1 && !dark; dy++) {
+            const offset = ((y + dy) * width + x) * 4
+            dark = is_dark(data, offset, threshold)
+          }
+
+          if (dark) {
+            run += gap + 1
+            gap = 0
+          } else if (run && gap < 2) {
+            gap++
+          } else {
+            longest = Math.max(longest, run)
+            run = 0
+            gap = 0
+          }
+        }
+
+        longest = Math.max(longest, run)
+        row_ratios[y] = longest / width
+      }
+
+      let candidate = null
+      for (let y = y_start; y < y_end; y++) {
+        const ratio = row_ratios[y]
+        const nearby = Math.max(row_ratios[y - 5] ?? 0, row_ratios[y + 5] ?? 0)
+        if (ratio >= 0.2 && ratio >= nearby + 0.08 && (!candidate || ratio > candidate.ratio)) {
+          candidate = { y, ratio }
+        }
+      }
+
+      if (!candidate) return null
+
+      let dark_below = 0
+      let samples = 0
+      const below_end = Math.floor(height * 0.93)
+      for (let y = candidate.y + 6; y < below_end; y += 3) {
+        for (let x = x_start; x < x_end; x += 3) {
+          samples++
+          if (is_dark(data, (y * width + x) * 4, threshold)) dark_below++
+        }
+      }
+
+      if (dark_below / samples < 0.002) return null
+      return {
+        cut: candidate.y / height,
+        confidence: Math.min(99, Math.round(42 + candidate.ratio * 180))
+      }
+    }
+
+    function self_test() {
+      const width = 200
+      const height = 300
+      const data = new Uint8ClampedArray(width * height * 4).fill(255)
+      const darken = (x, y) => {
+        const offset = (y * width + x) * 4
+        data[offset] = data[offset + 1] = data[offset + 2] = 0
+      }
+      for (let x = 35; x < 115; x++) darken(x, 120)
+      for (let y = 145; y < 249; y++) {
+        for (let x = 55; x < 145; x += 5) darken(x, y)
+      }
+      const result = detect_separator({ data, width, height })
+      console.assert(result && Math.abs(result.cut - 0.4) < 0.02, 'High separator detection self-test failed')
+      for (let x = 5; x < 195; x++) darken(x, 180)
+      console.assert(detect_separator({ data, width, height }), 'Long separator self-test failed')
+      const gray = new Uint8ClampedArray(width * height * 4)
+      for (let offset = 0; offset < gray.length; offset += 4) {
+        gray[offset] = gray[offset + 1] = gray[offset + 2] = 120
+        gray[offset + 3] = 255
+      }
+      console.assert(detect_separator({ data: gray, width, height }) === null, 'Gray page self-test failed')
+      const band = new Uint8ClampedArray(width * height * 4).fill(255)
+      for (let y = 150; y < 201; y++) {
+        for (let x = 16; x < 184; x++) {
+          const offset = (y * width + x) * 4
+          band[offset] = band[offset + 1] = band[offset + 2] = 0
+        }
+      }
+      console.assert(detect_separator({ data: band, width, height }) === null, 'Dark band self-test failed')
+      const fake_page = {
+        getCropBox: () => ({ x: 10, y: 20, width: 200, height: 300 }),
+        getRotation: () => ({ angle: 0 })
+      }
+      const rectangle = rectangle_for(fake_page, 0.6, 0.9)
+      console.assert(rectangle.x === 10 && Math.abs(rectangle.y - 50) < 0.01 && Math.abs(rectangle.height - 90) < 0.01, 'Export rectangle self-test failed')
+    }
+
+    function show_error(text, type = '') {
+      message.textContent = text
+      message.dataset.type = type
+      message.classList.add('error')
+    }
+
+    function clear_error() {
+      message.textContent = ''
+      delete message.dataset.type
+      message.classList.remove('error')
+    }
+
+    function set_activity(text, value, max, cancelable = false) {
+      activity.hidden = false
+      activity_text.textContent = text
+      progress.max = max
+      progress.value = value
+      $('cancel').hidden = !cancelable
+      if (cancelable) $('cancel').disabled = false
+    }
+
+    function set_busy(value) {
+      busy = value
+      file_input.disabled = value || !runtime_ready
+      $('download').disabled = value
+      if (pdf) update_controls()
+    }
+
+    function detected_count() {
+      return page_settings.filter(page => page.cut !== null).length
+    }
+
+    function update_summary() {
+      $('summary').textContent = `${pdf.numPages.toLocaleString('ar')} صفحة · حُدّدت ${detected_count().toLocaleString('ar')} صفحة للإزالة`
+    }
+
+    async function load_file(file) {
+      if (busy) return
+      if (!file || (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf')) {
+        show_error('اختر ملف PDF صالحًا.')
+        return
+      }
+      if (file.size > 150 * 1024 * 1024 && !confirm('هذا الملف كبير وقد يستهلك ذاكرة كثيرة أو يتوقف في المتصفح. هل تريد المتابعة؟')) return
+
+      clear_error()
+      workspace.hidden = true
+      cancel_requested = false
+      set_activity('جارٍ فتح الملف…', 0, 1)
+      $('announcement').textContent = 'جارٍ فتح ملف PDF.'
+      set_busy(true)
+      let load_stage = 'opening'
+
+      try {
+        if (!await worker_ready) return
+        const bytes = await file.arrayBuffer()
+        const next_pdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false }).promise
+        await pdf?.destroy()
+        pdf = next_pdf
+        source_file = file
+        page_settings = Array.from({ length: pdf.numPages }, () => ({ cut: null, end: 0.94, auto_cut: null, confidence: 0 }))
+        current_page = 0
+        $('file_name').textContent = file.name
+        page_number.max = pdf.numPages
+        update_controls()
+        workspace.hidden = false
+        update_summary()
+        set_activity('جارٍ تجهيز المعاينة…', 0, 1, true)
+        load_stage = 'preview'
+        await render_preview()
+        if (cancel_requested) throw new DOMException('Cancelled', 'AbortError')
+        load_stage = 'analysis'
+        await analyze_pdf()
+      } catch (error) {
+        workspace.hidden = !pdf
+        if (pdf) update_summary()
+        if (error?.name === 'AbortError' || error?.name === 'RenderingCancelledException') {
+          message.textContent = 'أُلغي التحليل. يمكنك تنزيل الصفحات التي اكتملت أو اختيار ملف آخر.'
+        } else {
+          console.error(error)
+          if (load_stage === 'opening') show_error('تعذر فتح الملف. قد يكون تالفًا أو محميًا بكلمة مرور.')
+          else if (load_stage === 'preview') show_error('تعذر عرض هذه الصفحة.', 'preview')
+          else show_error('توقف التحليل. قد يكون الملف تالفًا أو تعذر عرض إحدى صفحاته.')
+        }
+      } finally {
+        analysis_task = null
+        activity.hidden = true
+        set_busy(false)
+      }
+    }
+
+    async function analyze_pdf() {
+      const context = analysis_canvas.getContext('2d', { willReadFrequently: true })
+      let announced_step = 0
+
+      for (let index = 0; index < pdf.numPages; index++) {
+        if (cancel_requested) throw new DOMException('Cancelled', 'AbortError')
+        set_activity(`تحليل الصفحة ${index + 1} من ${pdf.numPages}…`, index, pdf.numPages, true)
+
+        const page = await pdf.getPage(index + 1)
+        const base = page.getViewport({ scale: 1 })
+        const scale = Math.min(640 / base.width, Math.sqrt(1200000 / (base.width * base.height)), 4096 / base.width, 4096 / base.height)
+        const viewport = page.getViewport({ scale })
+        analysis_canvas.width = Math.ceil(viewport.width)
+        analysis_canvas.height = Math.ceil(viewport.height)
+        analysis_task = page.render({ canvasContext: context, viewport })
+        await analysis_task.promise
+        analysis_task = null
+        const result = detect_separator(context.getImageData(0, 0, analysis_canvas.width, analysis_canvas.height))
+
+        if (result) {
+          page_settings[index] = {
+            cut: result.cut,
+            end: 0.94,
+            auto_cut: result.cut,
+            confidence: result.confidence
+          }
+        }
+
+        page.cleanup()
+        const step = Math.floor((index + 1) * 10 / pdf.numPages)
+        if (step > announced_step) {
+          announced_step = step
+          $('announcement').textContent = `اكتمل ${step * 10} بالمئة من تحليل الملف.`
+        }
+        if (index % 4 === 0) await new Promise(requestAnimationFrame)
+      }
+
+      activity.hidden = true
+      update_summary()
+      update_controls()
+      message.textContent = detected_count()
+        ? 'اكتمل التحليل. راجع المناطق الحمراء ثم نزّل النسخة المنظّفة.'
+        : 'لم يُكتشف خط فاصل تلقائيًا. يمكنك تحديد الصفحات والحدود يدويًا.'
+    }
+
+    async function render_preview() {
+      if (!pdf) return
+      const this_preview = ++preview_id
+      let succeeded = false
+      preview_busy = true
+      preview_valid = false
+      file_input.disabled = true
+      update_controls()
+
+      try {
+        const previous_task = preview_task
+        previous_task?.cancel()
+        try {
+          await previous_task?.promise
+        } catch (error) {
+          if (error?.name !== 'RenderingCancelledException') throw error
+        }
+        if (this_preview !== preview_id) return
+
+        const page = await pdf.getPage(current_page + 1)
+        if (this_preview !== preview_id) return
+        const base = page.getViewport({ scale: 1 })
+        const target_width = Math.min(1800, Math.max(1200, $('page_shell').parentElement.clientWidth * devicePixelRatio))
+        const scale = Math.min(target_width / base.width, Math.sqrt(8000000 / (base.width * base.height)), 4096 / base.width, 4096 / base.height)
+        const viewport = page.getViewport({ scale })
+        preview_canvas.width = Math.ceil(viewport.width)
+        preview_canvas.height = Math.ceil(viewport.height)
+        const task = page.render({ canvasContext: preview_canvas.getContext('2d'), viewport })
+        preview_task = task
+        await task.promise
+        succeeded = true
+        $('preview_unavailable').hidden = true
+        if (message.dataset.type === 'preview') clear_error()
+      } catch (error) {
+        if (error?.name !== 'RenderingCancelledException') {
+          preview_canvas.getContext('2d').clearRect(0, 0, preview_canvas.width, preview_canvas.height)
+          $('preview_unavailable').hidden = false
+          throw error
+        }
+      } finally {
+        if (this_preview === preview_id) {
+          preview_busy = false
+          preview_valid = succeeded
+          file_input.disabled = busy || !runtime_ready
+          update_controls()
+        }
+      }
+    }
+
+    function update_preview_label() {
+      if (!pdf) return
+      const setting = page_settings[current_page]
+      $('preview_area').setAttribute('aria-label', preview_busy
+        ? `جارٍ عرض الصفحة ${current_page + 1} من ${pdf.numPages}.`
+        : !preview_valid
+          ? `تعذر عرض الصفحة ${current_page + 1} من ${pdf.numPages}.`
+          : setting.cut === null
+            ? `معاينة الصفحة ${current_page + 1} من ${pdf.numPages}. لا توجد منطقة إزالة.`
+            : `معاينة الصفحة ${current_page + 1} من ${pdf.numPages}. منطقة الإزالة من ${(setting.cut * 100).toFixed(1)} إلى ${(setting.end * 100).toFixed(1)} بالمئة.`)
+    }
+
+    function update_controls() {
+      if (!pdf) return
+      const setting = page_settings[current_page]
+      const cut = setting.cut
+      page_number.value = current_page + 1
+      page_number.disabled = busy || preview_busy
+      $('previous_page').disabled = busy || preview_busy || current_page === 0
+      $('next_page').disabled = busy || preview_busy || current_page === pdf.numPages - 1
+      remove_page.checked = cut !== null
+      remove_page.disabled = busy || preview_busy || !preview_valid
+      boundary.disabled = busy || preview_busy || !preview_valid || cut === null
+      boundary_end.disabled = busy || preview_busy || !preview_valid || cut === null
+      boundary.value = (cut ?? setting.auto_cut ?? 0.68) * 100
+      boundary_end.value = setting.end * 100
+      boundary_value.textContent = cut === null ? '—' : `${(cut * 100).toFixed(1)}٪ من أعلى الصفحة`
+      boundary_end_value.textContent = cut === null ? '—' : `${(setting.end * 100).toFixed(1)}٪ من أعلى الصفحة`
+      $('restore_auto').disabled = busy || preview_busy || !preview_valid || setting.auto_cut === null
+      $('clear_page').disabled = busy || preview_busy || !preview_valid || cut === null
+      $('next_detected').disabled = busy || preview_busy || detected_count() === 0
+      $('download').disabled = busy || preview_busy || !preview_valid
+      $('preview_area').setAttribute('aria-busy', String(preview_busy))
+      update_preview_label()
+      update_mask()
+    }
+
+    function update_mask() {
+      const setting = page_settings[current_page]
+      removal_mask.hidden = !preview_valid || setting?.cut === null || setting?.cut === undefined
+      if (removal_mask.hidden) return
+      removal_mask.style.top = `${setting.cut * 100}%`
+      removal_mask.style.bottom = `${(1 - setting.end) * 100}%`
+    }
+
+    function go_to_page(index) {
+      if (!pdf || busy || preview_busy) return
+      current_page = Math.max(0, Math.min(pdf.numPages - 1, index))
+      render_preview().catch(error => {
+        console.error(error)
+        show_error('تعذر عرض هذه الصفحة.', 'preview')
+      })
+    }
+
+    function change_current_page(enabled) {
+      if (busy || preview_busy || !preview_valid) return
+      const setting = page_settings[current_page]
+      setting.cut = enabled ? Math.min(setting.end - 0.01, Number(boundary.value) / 100) : null
+      update_summary()
+      update_controls()
+    }
+
+    function set_current_edge(edge, value) {
+      if (busy || preview_busy || !preview_valid) return
+      const setting = page_settings[current_page]
+      if (edge === 'bottom') {
+        setting.end = Math.max(setting.cut + 0.01, Math.min(1, value))
+      } else {
+        setting.cut = Math.max(0.05, Math.min(setting.end - 0.01, value))
+      }
+      boundary.value = setting.cut * 100
+      boundary_end.value = setting.end * 100
+      boundary_value.textContent = `${(setting.cut * 100).toFixed(1)}٪ من أعلى الصفحة`
+      boundary_end_value.textContent = `${(setting.end * 100).toFixed(1)}٪ من أعلى الصفحة`
+      update_preview_label()
+      update_mask()
+    }
+
+    function rectangle_for(page, start, end) {
+      const box = page.getCropBox()
+      const length = end - start
+      const rotation = ((page.getRotation().angle % 360) + 360) % 360
+
+      if (rotation === 90) return { x: box.x + box.width * start, y: box.y, width: box.width * length, height: box.height }
+      if (rotation === 180) return { x: box.x, y: box.y + box.height * start, width: box.width, height: box.height * length }
+      if (rotation === 270) return { x: box.x + box.width * (1 - end), y: box.y, width: box.width * length, height: box.height }
+      return { x: box.x, y: box.y + box.height * (1 - end), width: box.width, height: box.height * length }
+    }
+
+    async function download_pdf() {
+      if (busy || preview_busy || !preview_valid) return
+      if (!source_file || !window.PDFLib) {
+        show_error('تعذر تحميل محرّك حفظ PDF. تحقق من اتصال الإنترنت.')
+        return
+      }
+
+      const affected = detected_count()
+      if (!affected) {
+        show_error('لا توجد صفحات محددة للإزالة.')
+        return
+      }
+
+      set_busy(true)
+      set_activity('جارٍ إنشاء الملف المنظّف…', 0, 1)
+      clear_error()
+
+      try {
+        const pdf_document = await PDFLib.PDFDocument.load(await source_file.arrayBuffer())
+        const pages = pdf_document.getPages()
+        for (let index = 0; index < pages.length; index++) {
+          const cut = page_settings[index].cut
+          if (cut === null) continue
+          pages[index].drawRectangle({
+            ...rectangle_for(pages[index], cut, page_settings[index].end),
+            color: PDFLib.rgb(1, 1, 1),
+            borderWidth: 0
+          })
+        }
+
+        const output = await pdf_document.save()
+        const blob = new Blob([output], { type: 'application/pdf' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = source_file.name.replace(/\.pdf$/i, '') + '-بدون-حواشي.pdf'
+        link.click()
+        setTimeout(() => URL.revokeObjectURL(url), 60000)
+        message.textContent = `تم إنشاء الملف وتغطية الحواشي في ${affected.toLocaleString('ar')} صفحة.`
+      } catch (error) {
+        console.error(error)
+        show_error('تعذر حفظ هذا الملف. قد يكون مشفرًا أو يستخدم بنية PDF غير مدعومة.')
+      } finally {
+        activity.hidden = true
+        set_busy(false)
+      }
+    }
+
+    file_input.addEventListener('change', () => {
+      const file = file_input.files[0]
+      file_input.value = ''
+      load_file(file)
+    })
+    upload_zone.addEventListener('dragover', event => {
+      event.preventDefault()
+      upload_zone.classList.add('dragging')
+    })
+    upload_zone.addEventListener('dragleave', () => upload_zone.classList.remove('dragging'))
+    upload_zone.addEventListener('drop', event => {
+      event.preventDefault()
+      upload_zone.classList.remove('dragging')
+      load_file(event.dataTransfer.files[0])
+    })
+
+    $('previous_page').addEventListener('click', () => go_to_page(current_page - 1))
+    $('next_page').addEventListener('click', () => go_to_page(current_page + 1))
+    page_number.addEventListener('change', () => go_to_page(Number(page_number.value) - 1))
+    remove_page.addEventListener('change', () => change_current_page(remove_page.checked))
+    boundary.addEventListener('input', () => set_current_edge('top', Number(boundary.value) / 100))
+    boundary.addEventListener('change', update_summary)
+    boundary_end.addEventListener('input', () => set_current_edge('bottom', Number(boundary_end.value) / 100))
+    boundary_end.addEventListener('change', update_summary)
+    document.querySelectorAll('.drag_handle').forEach(handle => {
+      handle.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return
+        handle.setPointerCapture(event.pointerId)
+      })
+      handle.addEventListener('pointermove', event => {
+        if (!handle.hasPointerCapture(event.pointerId)) return
+        const rect = $('page_shell').getBoundingClientRect()
+        set_current_edge(handle.dataset.edge, (event.clientY - rect.top) / rect.height)
+      })
+      handle.addEventListener('pointerup', event => {
+        handle.releasePointerCapture(event.pointerId)
+        update_summary()
+      })
+    })
+    $('clear_page').addEventListener('click', () => change_current_page(false))
+    $('restore_auto').addEventListener('click', () => {
+      page_settings[current_page].cut = page_settings[current_page].auto_cut
+      page_settings[current_page].end = 0.94
+      update_summary()
+      update_controls()
+    })
+    $('next_detected').addEventListener('click', () => {
+      let index = page_settings.findIndex((setting, index) => index > current_page && setting.cut !== null)
+      if (index < 0) index = page_settings.findIndex(setting => setting.cut !== null)
+      if (index >= 0) go_to_page(index)
+    })
+    $('cancel').addEventListener('click', () => {
+      cancel_requested = true
+      analysis_task?.cancel()
+      preview_task?.cancel()
+      activity_text.textContent = 'جارٍ إلغاء التحليل…'
+      $('cancel').disabled = true
+    })
+    $('download').addEventListener('click', download_pdf)
+
+    self_test()
+  </script>
+</body>
+
+</html>
